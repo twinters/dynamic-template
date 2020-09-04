@@ -16,6 +16,7 @@ dependencies {
     compile project(':language-util')
     compile project(':chatbot-util')
     compile project(':text-util')
+    compile project(':markov')
     compile 'javax.xml.bind:jaxb-api:2.3.0'
 
     compile 'commons-lang:commons-lang:2.6'

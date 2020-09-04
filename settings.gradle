@@ -4,5 +4,7 @@ include ':language-util'
 project(':language-util').projectDir = new File(settingsDir, '../language-util')
 include ':text-util'
 project(':text-util').projectDir = new File(settingsDir, '../text-util')
+include ':markov'
+project(':markov').projectDir = new File(settingsDir, '../markov')
 rootProject.name = 'dynamic-template'
 

@@ -8,3 +8,4 @@ The following repositories need to be cloned in folders next to this repository,
 - [language-util](https://github.com/twinters/language-util)
 - [chatbot-util](https://github.com/twinters/chatbot-util)
 - [text-util](https://github.com/twinters/text-util)
+- [markov](https://github.com/twinters/markov)
