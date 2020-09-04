@@ -1,5 +1,7 @@
 include ':generator-util'
 project(':generator-util').projectDir = new File(settingsDir, '../generator-util')
+include ':chatbot-util'
+project(':chatbot-util').projectDir = new File(settingsDir, '../chatbot-util')
 include ':language-util'
 project(':language-util').projectDir = new File(settingsDir, '../language-util')
 include ':text-util'
