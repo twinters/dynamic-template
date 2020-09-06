@@ -7,6 +7,7 @@ import com.google.gson.stream.JsonReader;
 
 import java.io.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class DynamicTemplateExecuter {
 
@@ -15,13 +16,20 @@ public class DynamicTemplateExecuter {
         String inputFileName = args[0];
         String outputFile = args[1];
 
+
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         JsonReader reader = new JsonReader(new BufferedReader(
                 new InputStreamReader(ClassLoader.getSystemResource(inputFileName).openStream())));
         List<String> corpus = gson.fromJson(reader, List.class);
 
+
+        int numberOfLines = corpus.size();
+        if (args.length > 2) {
+            numberOfLines = Integer.parseInt(args[2]);
+        }
+
         List<String> output = new ArrayList<>();
-        for (int i = 0; i < corpus.size(); i++) {
+        for (int i = 0; i < numberOfLines; i++) {
             System.out.println(i + ": " + corpus.get(i));
             Optional<String> generated = Optional.empty();
             int trial = 0;
@@ -37,7 +45,7 @@ public class DynamicTemplateExecuter {
             output.add(generated.get());
 
         }
-        System.out.println("Output: " + output);
+        System.out.println("Output: " + output.stream().collect(Collectors.joining("\n\n")));
         try (FileWriter writer = new FileWriter(outputFile, Charsets.UTF_8)) {
             gson.toJson(output, writer);
         } catch (IOException e) {
