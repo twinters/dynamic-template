@@ -5,10 +5,9 @@ import be.thomaswinters.markov.model.data.bags.Bag;
 import be.thomaswinters.markov.model.data.bags.WriteableBag;
 import be.thomaswinters.markov.model.data.bags.impl.ExclusionBag;
 import be.thomaswinters.markov.model.data.bags.impl.MutableBag;
-import be.thomaswinters.random.Picker;
 import be.thomaswinters.replacement.Replacer;
-import be.thomaswinters.replacement.Replacers;
 import org.languagetool.AnalyzedSentence;
+import org.languagetool.AnalyzedToken;
 import org.languagetool.AnalyzedTokenReadings;
 import org.languagetool.JLanguageTool;
 import org.languagetool.language.Dutch;
@@ -30,7 +29,7 @@ public class SimilarWordReplacer {
      *  INSTANCE VARIABLES
      *-********************************************-*/
 
-    private Map<Set<String>, WriteableBag<String>> mappings = new HashMap<>();
+    private Map<Set<String>, WriteableBag<String>> contextWordsMap = new HashMap<>();
 
     /*-********************************************-*/
 
@@ -39,7 +38,7 @@ public class SimilarWordReplacer {
      *-********************************************-*/
 
     protected Set<String> getTags(AnalyzedTokenReadings token) {
-        return token.getReadings().stream().filter(e -> !e.hasNoTag()).map(e -> e.getPOSTag())
+        return token.getReadings().stream().filter(e -> !e.hasNoTag()).map(AnalyzedToken::getPOSTag)
                 .filter(e -> e != null && !e.equals("SENT_END") && !e.equals("PARA_END")).collect(Collectors.toSet());
     }
 
@@ -77,8 +76,8 @@ public class SimilarWordReplacer {
     /*-********************************************-*
      *  PROCESSING KNOWLEDGE INPUT
      *-********************************************-*/
-    public void process(String line) throws IOException {
-        List<AnalyzedSentence> answers = langTool.analyzeText(line);
+    public void process(String contextLine) throws IOException {
+        List<AnalyzedSentence> answers = langTool.analyzeText(contextLine);
 
         for (AnalyzedSentence analyzedSentence : answers) {
             List<AnalyzedTokenReadings> tokens = filterTokens(Arrays.asList(analyzedSentence.getTokens()));
@@ -88,10 +87,10 @@ public class SimilarWordReplacer {
 
                     // Add if valid
                     if (tags != null && tags.size() > 0) {
-                        if (!mappings.containsKey(tags)) {
-                            mappings.put(tags, new MutableBag<String>());
+                        if (!contextWordsMap.containsKey(tags)) {
+                            contextWordsMap.put(tags, new MutableBag<String>());
                         }
-                        mappings.get(tags).add(token.getToken());
+                        contextWordsMap.get(tags).add(token.getToken());
                     }
                 }
             }
@@ -108,10 +107,10 @@ public class SimilarWordReplacer {
      *  REPLACEABLE CALCULATION
      *-********************************************-*/
     public int getReplaceableSize(Set<String> tags) {
-        if (!mappings.containsKey(tags)) {
+        if (!contextWordsMap.containsKey(tags)) {
             return 0;
         }
-        return mappings.get(tags).size();
+        return contextWordsMap.get(tags).size();
     }
 
     public List<AnalyzedTokenReadings> getReplaceableTokens(String line) {
@@ -152,13 +151,13 @@ public class SimilarWordReplacer {
         return bag.get(RANDOM.nextInt(bag.getAmountOfElements()));
     }
 
-    public List<Replacer> calculatePossibleReplacements(String line) {
-        Set<AnalyzedTokenReadings> tokens = new LinkedHashSet<>(getReplaceableTokens(line));
+    public List<Replacer> calculatePossibleReplacements(String dynamicTemplate) {
+        Set<AnalyzedTokenReadings> tokens = new LinkedHashSet<>(getReplaceableTokens(dynamicTemplate));
         List<Replacer> replacers = new ArrayList<>();
         for (AnalyzedTokenReadings token : tokens) {
-            Bag<String> replacePossibilities = mappings.get(getTags(token));
+            Bag<String> replacePossibilities = contextWordsMap.get(getTags(token));
 
-            createReplacer(token, replacePossibilities).ifPresent(replacer -> replacers.add(replacer));
+            createReplacer(token, replacePossibilities).ifPresent(replacers::add);
 
 //			System.out.println((createReplacer(token, replacePossibilities).isPresent()) + " mapping of " + token
 //					+ "\n=>" + replacePossibilities);
@@ -168,14 +167,15 @@ public class SimilarWordReplacer {
 
     /*-********************************************-*/
 
-    public String replaceSomething(String line, int amountOfReplacements) {
-        List<Replacer> replacers = calculatePossibleReplacements(line);
-        Set<Replacer> chosenReplacers = new LinkedHashSet<>(
-                Picker.pickRandomUniqueIndices(Math.min(replacers.size(), amountOfReplacements), replacers.size())
-                        .stream().map(idx -> replacers.get(idx)).collect(Collectors.toList()));
-
-        return (new Replacers(chosenReplacers)).replace(line);
-
-    }
+//    public String replaceSomething(String line, int amountOfReplacements) {
+//        List<Replacer> replacers = calculatePossibleReplacements(line);
+//        Set<Replacer> chosenReplacers = Picker
+//                .pickRandomUniqueIndices(Math.min(replacers.size(), amountOfReplacements), replacers.size())
+//                .stream()
+//                .map(replacers::get)
+//                .collect(Collectors.toCollection(LinkedHashSet::new));
+//
+//        return (new Replacers(chosenReplacers)).replace(line);
+//    }
 
 }
