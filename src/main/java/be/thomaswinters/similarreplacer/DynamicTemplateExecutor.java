@@ -5,11 +5,19 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
 
-import java.io.*;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.io.BufferedReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
-public class DynamicTemplateExecuter {
+public class DynamicTemplateExecutor {
+
+    /*-********************************************-*
+     * EXECUTION
+     *-********************************************-*/
 
     public static void main(String[] args) throws IOException {
 
@@ -28,15 +36,15 @@ public class DynamicTemplateExecuter {
             numberOfLines = Integer.parseInt(args[2]);
         }
 
+        DynamicTemplateGenerator frequencyBasedSimilarWordReplacer = new DynamicTemplateGenerator(corpus, corpus);
+
         List<String> output = new ArrayList<>();
         for (int i = 0; i < numberOfLines; i++) {
             System.out.println(i + ": " + corpus.get(i));
             Optional<String> generated = Optional.empty();
             int trial = 0;
             while (!generated.isPresent() && trial <= 100) {
-                TorfsSimilarWordReplacer repl = TorfsSimilarWordReplacer.create(Collections.singletonList(corpus.get(i)), corpus);
-                System.out.println(i + " replacement : " + repl.get());
-                generated = repl.generate();
+                generated = frequencyBasedSimilarWordReplacer.generate(corpus.get(i), 5, false);
                 trial += 1;
                 if (generated.isPresent() && corpus.contains(generated.get()) && trial <= 100) {
                     generated = Optional.empty();
@@ -45,12 +53,11 @@ public class DynamicTemplateExecuter {
             output.add(generated.get());
 
         }
-        System.out.println("Output: " + output.stream().collect(Collectors.joining("\n\n")));
+        System.out.println("Output: " + String.join("\n\n", output));
         try (FileWriter writer = new FileWriter(outputFile, Charsets.UTF_8)) {
             gson.toJson(output, writer);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
 }
