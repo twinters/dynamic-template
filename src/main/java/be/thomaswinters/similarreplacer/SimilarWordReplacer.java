@@ -21,7 +21,7 @@ public class SimilarWordReplacer {
      *  STATIC TOOLS
      *-********************************************-*/
     private static final JLanguageTool langTool = new JLanguageTool(new Dutch());
-    protected static final Random RANDOM = new Random();
+    private static final RandomReplacementPicker PICKER = new RandomReplacementPicker();
 
     /*-********************************************-*/
 
@@ -30,6 +30,8 @@ public class SimilarWordReplacer {
      *-********************************************-*/
 
     private Map<Set<String>, WriteableBag<String>> contextWordsMap = new HashMap<>();
+
+    private boolean allowsName = false;
 
     /*-********************************************-*/
 
@@ -135,11 +137,25 @@ public class SimilarWordReplacer {
 
     /**
      * Picks a replacement from the given possible replacements
-     * @param token word to replace
+     *
+     * @param token                word to replace
      * @param replacePossibilities List of strings that can be given as a replacement
      * @return
      */
-    public Optional<Replacer> createReplacer(AnalyzedTokenReadings token, Bag<String> replacePossibilities) {
+    public Optional<Replacer> createReplacer(AnalyzedTokenReadings token,
+                                             Bag<String> replacePossibilities,
+                                             IReplacementPicker replacementPicker) {
+
+        // Null check
+        if (token == null || token.getToken().length() == 0) {
+            return Optional.empty();
+        }
+
+        // Check if name:
+        if (!allowsName && getTags(token).stream().allMatch(tag -> tag.startsWith("PN"))) {
+            return Optional.empty();
+        }
+
         // Check if there is another possibility than to replace with itself
         if (replacePossibilities.isEmpty() || (replacePossibilities.getAmountOfUniqueElements() == 1
                 && replacePossibilities.get(0).toLowerCase().equals(token.getToken().toLowerCase()))) {
@@ -148,7 +164,7 @@ public class SimilarWordReplacer {
 
         // Remove word itself from possible replacements, as to not replace with same token
         Bag<String> bag = new ExclusionBag<String>(replacePossibilities, Arrays.asList(token.getToken()));
-        String replacement = pickReplacement(token.getToken(), bag);
+        String replacement = replacementPicker.pickReplacement(token.getToken(), bag);
 
         // Create replacer object
         Replacer replacer = new Replacer(token.getToken(), replacement, false, true);
@@ -156,25 +172,23 @@ public class SimilarWordReplacer {
         return Optional.of(replacer);
     }
 
-    /**
-     * Picks a random replacement from the bag
-     */
-    public String pickReplacement(String replacement, Bag<String> bag) {
-        return bag.get(RANDOM.nextInt(bag.getAmountOfElements()));
-    }
+
+
+
 
     /**
      * Calculates all the POS-tags for a particular dynamic template to discover which tokens from the contextWordsMap
      * would be a great possible replacement
+     *
      * @return a list of replacers that would be suitable for the dynamic template
      */
-    public List<Replacer> calculatePossibleReplacements(String dynamicTemplate) {
+    public List<Replacer> calculatePossibleReplacements(String dynamicTemplate, IReplacementPicker picker) {
         Set<AnalyzedTokenReadings> tokens = new LinkedHashSet<>(getReplaceableTokens(dynamicTemplate));
         List<Replacer> replacers = new ArrayList<>();
         for (AnalyzedTokenReadings token : tokens) {
             Bag<String> replacePossibilities = contextWordsMap.get(getTags(token));
 
-            createReplacer(token, replacePossibilities).ifPresent(replacers::add);
+            createReplacer(token, replacePossibilities, picker).ifPresent(replacers::add);
         }
         return replacers;
     }
