@@ -14,30 +14,74 @@ import java.util.stream.Collectors;
 
 public class TorfsSimilarWordReplacer extends SimilarWordReplacer implements IGenerator<String> {
 
-    private final List<String> baseTexts;
+    private final List<String> templateBases;
     private final WordCounter wc;
 
-    public TorfsSimilarWordReplacer(List<String> baseTexts, WordCounter wc) {
-        this.baseTexts = baseTexts;
+    public TorfsSimilarWordReplacer(List<String> dynamicTemplateBases, WordCounter wc) {
+        this.templateBases = dynamicTemplateBases;
         this.wc = wc;
     }
 
 
     private static final double MIN_QUARTILE_FOR_REPLACEMENT = 0.62;
 
+    /*-********************************************-*
+     *  Construction
+     *-********************************************-*/
+    public static TorfsSimilarWordReplacer create(List<String> dynamicTemplateBases, List<String> contextCorpus) throws IOException {
+        List<String> allLines = new ArrayList<String>(dynamicTemplateBases);
+        allLines.addAll(contextCorpus);
+
+        WordCounter wc = new WordCounter(allLines);
+
+        int numberOfContextLines = 2;
+        int numberOfDynamicTemplateAsContextLines = 1;
+        boolean consequtiveContextLines = true;
+
+        List<String> contextLines;
+        if (consequtiveContextLines) {
+            contextLines = Picker.pickConsequtiveIndices(numberOfContextLines, contextCorpus.size()).stream()
+                    .map(contextCorpus::get).collect(Collectors.toList());
+        } else {
+            contextLines = Picker.pickRandomUniqueIndices(numberOfContextLines, contextCorpus.size()).stream()
+                    .map(contextCorpus::get).collect(Collectors.toList());
+        }
+        List<String> dynamicTemplateContext = Picker.pickRandomUniqueIndices(numberOfDynamicTemplateAsContextLines, dynamicTemplateBases.size()).stream()
+                .map(dynamicTemplateBases::get).collect(Collectors.toList());
+
+        TorfsSimilarWordReplacer wordReplacer = new TorfsSimilarWordReplacer(dynamicTemplateBases, wc);
+        wordReplacer.addContextWords(contextLines);
+        wordReplacer.addContextWords(dynamicTemplateContext);
+
+        return wordReplacer;
+    }
+
+    /*-********************************************-*
+     *  GENERATOR
+     *-********************************************-*/
     @Override
     public Optional<String> generate() {
-        String randomTweet = baseTexts.get(RANDOM.nextInt(baseTexts.size()));
-        List<Replacer> replacers = calculatePossibleReplacements(randomTweet);
-        List<Replacer> chosenReplacers = pickReplacers(randomTweet.length() / 25, wc.getQuartileCount(MIN_QUARTILE_FOR_REPLACEMENT), replacers);
+        String randomDynamicTemplate = templateBases.get(RANDOM.nextInt(templateBases.size()));
+        List<Replacer> replacers = calculatePossibleReplacements(randomDynamicTemplate);
+        List<Replacer> chosenReplacers = pickReplacers(calculateMinNumberOfReplacements(randomDynamicTemplate), wc.getQuartileCount(MIN_QUARTILE_FOR_REPLACEMENT), replacers);
 
-        String result = new Replacers(chosenReplacers).replace(randomTweet);
+        String result = new Replacers(chosenReplacers).replace(randomDynamicTemplate);
 
-//        System.out.println("\n\nTOTAL:\nFrom: " + randomTweet + "\nTo:   " + result);
+//        System.out.println("\n\nTOTAL:\nFrom: " + randomDynamicTemplate + "\nTo:   " + result);
         return Optional.of(result);
     }
 
-    private List<Replacer> pickReplacers(int minAmount, int quartileCount, Collection<Replacer> replacers) {
+    private int calculateMinNumberOfReplacements(String randomTweet) {
+        return randomTweet.length() / 25;
+    }
+
+    /**
+     * @param minAmount        The minimum number of replacers to use
+     * @param maxWordFrequency Maximum frequency of a word that is about to be replaced, such that common words still remain intact
+     * @param replacers        The list of potential replacers
+     * @return
+     */
+    private List<Replacer> pickReplacers(int minAmount, int maxWordFrequency, Collection<Replacer> replacers) {
         List<Replacer> sorted = new ArrayList<>(replacers);
         sorted.sort(new ReplacerQuartileComparator());
 
@@ -46,21 +90,24 @@ public class TorfsSimilarWordReplacer extends SimilarWordReplacer implements IGe
         for (Replacer replacer : sorted) {
             if (result.size() < minAmount) {
 //                System.out.println("Adding to min amount:" + replacer + ", " + wc.getCount(replacer.getWord()) + " / "
-//                        + quartileCount);
+//                        + maxWordFrequency);
                 result.add(replacer);
-            } else if (wc.getCount(replacer.getWord()) < quartileCount) {
+            } else if (wc.getCount(replacer.getWord()) < maxWordFrequency) {
 //                System.out.println("Adding quartile count:" + replacer + ", " + wc.getCount(replacer.getWord()) + " / "
-//                        + quartileCount);
+//                        + maxWordFrequency);
                 result.add(replacer);
             } else {
 //                System.out.println("Not adding: " + replacer + ", " + wc.getCount(replacer.getWord()) + " / "
-//                        + quartileCount);
+//                        + maxWordFrequency);
             }
         }
         return result;
 
     }
 
+    /*-********************************************-*
+     * COMPARATORS
+     *-********************************************-*/
     private class ClosestWordCountComparator implements Comparator<String> {
         private final String baseWord;
 
@@ -89,23 +136,6 @@ public class TorfsSimilarWordReplacer extends SimilarWordReplacer implements IGe
         return bag.toMultiset().stream().min(comp).get();
     }
 
-    public static TorfsSimilarWordReplacer create(List<String> tweets, List<String> columns) throws IOException {
-        List<String> allLines = new ArrayList<String>(tweets);
-        allLines.addAll(columns);
-
-        WordCounter wc = new WordCounter(allLines);
-
-        List<String> learningColumnLines = Picker.pickConsequtiveIndices(2, columns.size()).stream()
-                .map(columns::get).collect(Collectors.toList());
-        List<String> learningTweetLines = Picker.pickRandomUniqueIndices(1, tweets.size()).stream()
-                .map(tweets::get).collect(Collectors.toList());
-
-        TorfsSimilarWordReplacer wordReplacer = new TorfsSimilarWordReplacer(tweets, wc);
-        wordReplacer.process(learningColumnLines);
-        wordReplacer.process(learningTweetLines);
-
-        return wordReplacer;
-    }
 
     @Override
     public Optional<Replacer> createReplacer(AnalyzedTokenReadings token, Bag<String> replacePossibilities) {

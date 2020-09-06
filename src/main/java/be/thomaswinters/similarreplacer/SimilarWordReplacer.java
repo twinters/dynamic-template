@@ -76,7 +76,7 @@ public class SimilarWordReplacer {
     /*-********************************************-*
      *  PROCESSING KNOWLEDGE INPUT
      *-********************************************-*/
-    public void process(String contextLine) throws IOException {
+    public void addContextWords(String contextLine) throws IOException {
         List<AnalyzedSentence> answers = langTool.analyzeText(contextLine);
 
         for (AnalyzedSentence analyzedSentence : answers) {
@@ -98,8 +98,8 @@ public class SimilarWordReplacer {
 
     }
 
-    public void process(List<String> lines) {
-        lines.forEach(LambdaExceptionUtil.rethrowConsumer(this::process));
+    public void addContextWords(List<String> lines) {
+        lines.forEach(LambdaExceptionUtil.rethrowConsumer(this::addContextWords));
     }
     /*-********************************************-*/
 
@@ -133,24 +133,41 @@ public class SimilarWordReplacer {
 
     }
 
+    /**
+     * Picks a replacement from the given possible replacements
+     * @param token word to replace
+     * @param replacePossibilities List of strings that can be given as a replacement
+     * @return
+     */
     public Optional<Replacer> createReplacer(AnalyzedTokenReadings token, Bag<String> replacePossibilities) {
         // Check if there is another possibility than to replace with itself
         if (replacePossibilities.isEmpty() || (replacePossibilities.getAmountOfUniqueElements() == 1
                 && replacePossibilities.get(0).toLowerCase().equals(token.getToken().toLowerCase()))) {
             return Optional.empty();
         }
+
+        // Remove word itself from possible replacements, as to not replace with same token
         Bag<String> bag = new ExclusionBag<String>(replacePossibilities, Arrays.asList(token.getToken()));
         String replacement = pickReplacement(token.getToken(), bag);
 
+        // Create replacer object
         Replacer replacer = new Replacer(token.getToken(), replacement, false, true);
 
         return Optional.of(replacer);
     }
 
+    /**
+     * Picks a random replacement from the bag
+     */
     public String pickReplacement(String replacement, Bag<String> bag) {
         return bag.get(RANDOM.nextInt(bag.getAmountOfElements()));
     }
 
+    /**
+     * Calculates all the POS-tags for a particular dynamic template to discover which tokens from the contextWordsMap
+     * would be a great possible replacement
+     * @return a list of replacers that would be suitable for the dynamic template
+     */
     public List<Replacer> calculatePossibleReplacements(String dynamicTemplate) {
         Set<AnalyzedTokenReadings> tokens = new LinkedHashSet<>(getReplaceableTokens(dynamicTemplate));
         List<Replacer> replacers = new ArrayList<>();
@@ -158,9 +175,6 @@ public class SimilarWordReplacer {
             Bag<String> replacePossibilities = contextWordsMap.get(getTags(token));
 
             createReplacer(token, replacePossibilities).ifPresent(replacers::add);
-
-//			System.out.println((createReplacer(token, replacePossibilities).isPresent()) + " mapping of " + token
-//					+ "\n=>" + replacePossibilities);
         }
         return replacers;
     }
