@@ -115,7 +115,7 @@ public class DynamicTemplateGenerator implements IGenerator<String> {
     }
 
     private int calculateMinNumberOfReplacements(String randomTweet) {
-        return randomTweet.length() / 25;
+        return Math.max(1, randomTweet.length() / 25);
     }
 
     /**
