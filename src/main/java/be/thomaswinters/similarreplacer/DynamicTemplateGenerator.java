@@ -26,23 +26,36 @@ public class DynamicTemplateGenerator implements IGenerator<String> {
     private final WordCounter wc;
 
     private final IReplacementPicker replacementPicker = new ClosestWordReplacementPicker();
+    private final double minQuartileForReplacement;
+
+    private static final double DEFAULT_MIN_QUARTILE_FOR_REPLACEMENT = 0.62;
 
     /*-********************************************-*
      *  Construction
      *-********************************************-*/
-    public DynamicTemplateGenerator(List<String> dynamicTemplateBases, List<String> contextCorpus) {
+    public DynamicTemplateGenerator(List<String> dynamicTemplateBases,
+                                    List<String> contextCorpus,
+                                    WordCounter wc,
+                                    double minQuartileForReplacement) {
         this.templateBases = dynamicTemplateBases;
         this.contextCorpus = contextCorpus;
+        this.wc = wc;
+        this.minQuartileForReplacement = minQuartileForReplacement;
+    }
 
+    public DynamicTemplateGenerator(List<String> dynamicTemplateBases, List<String> contextCorpus) {
+        this(dynamicTemplateBases, contextCorpus,
+                calculateWordCounter(dynamicTemplateBases, contextCorpus),
+                DEFAULT_MIN_QUARTILE_FOR_REPLACEMENT);
+    }
+
+    protected static WordCounter calculateWordCounter(List<String> dynamicTemplateBases, List<String> contextCorpus) {
         // Calculate word counter
         List<String> allLines = new ArrayList<String>(dynamicTemplateBases);
         allLines.addAll(contextCorpus);
 
-        this.wc = new WordCounter(allLines);
+        return new WordCounter(allLines);
     }
-
-
-    private static final double MIN_QUARTILE_FOR_REPLACEMENT = 0.62;
 
 
     /*-********************************************-*
@@ -60,7 +73,8 @@ public class DynamicTemplateGenerator implements IGenerator<String> {
         wordReplacer.addContextWords(contextLines);
 
         List<Replacer> replacers = wordReplacer.calculatePossibleReplacements(dynamicTemplate, replacementPicker);
-        List<Replacer> chosenReplacers = pickReplacers(calculateMinNumberOfReplacements(dynamicTemplate), wc.getQuartileCount(MIN_QUARTILE_FOR_REPLACEMENT), replacers);
+        List<Replacer> chosenReplacers = pickReplacers(calculateMinNumberOfReplacements(dynamicTemplate),
+                wc.getQuartileCount(minQuartileForReplacement), replacers);
 
         String result = new Replacers(chosenReplacers).replace(dynamicTemplate);
 
