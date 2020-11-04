@@ -1,10 +1,10 @@
 # Dynamic Template
 
 The Dynamic Template algorithm is a text generation algorithm that is used to automatically imitate the global style of given input texts.
-Most notably, it is used in the [TorfsBot](https://twitter.com/TorfsBot) twitterbot and the [Dutch Humor Detection by Generating Negative Examples](https://github.com/twinters/dutch-humor-detection).
+Most notably, it is used in the [TorfsBot](https://twitter.com/TorfsBot) twitterbot and the [Dutch Humor Detection by Generating Negative Examples](https://github.com/twinters/dutch-humor-detection) project.
 
 The algorithm replaces low frequency words of a base text with other words from one or more other context texts having the same grammatical form.
-It this effectively turns any text of the corpus into a template, that is dynamically determined based on the available context words from another line of the input corpus.
+This effectively turns any text of the corpus into a template, which is dynamically determined based on the available context words from another line of the input corpus.
 
 This implementation works with the Dutch package of [LanguageTool](http://wiki.languagetool.org/) for labeling the part-of-speech tags.
 
