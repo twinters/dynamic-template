@@ -26,4 +26,4 @@ The following repositories need to be cloned in folders next to this repository,
 1. Clone this repository, and also the dependencies listed above.
 2. Open the project in an IDE that supports [Gradle](https://gradle.org/), e.g. [IntelliJ](https://www.jetbrains.com/idea/).
 3. Build the Gradle project from `build.gradle`.
-4. Run `DynamicTemplateExecutor.java`, which accepts a *"base text"* corpus and a *"context words"* corpus as its first and second arguments.
+4. Run `DynamicTemplateExecutor.java`, which accepts file paths for the *"base text"* corpus and the *"context words"* corpus as its first and second arguments.
